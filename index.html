@@ -1,103 +1,101 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scanner QR Code & Código de Barras</title>
-  <style>
-    body { margin:0; padding:0; background:#000; color:#fff; font-family:system-ui,sans-serif; text-align:center; }
-    h1 { padding:20px 10px 0; font-size:24px; margin:0; }
-    .controles { padding:15px; background:rgba(255,255,255,0.08); }
-    select, button { padding:12px 20px; font-size:18px; border-radius:50px; margin:8px; font-weight:bold; }
-    select { background:#222; color:white; border:none; width:90%; max-width:400px; }
-    button { background:#00ff41; color:black; border:none; cursor:pointer; width:90%; max-width:400px; }
-    #reader { width:100%; height:70vh; background:#000; }
-    #resultado { padding:20px; font-size:18px; background:rgba(255,255,255,0.1); margin:20px auto; border-radius:15px; max-width:90%; backdrop-filter:blur(10px); }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Scanner</title>
+
+<style>
+  body {
+    background: #000;
+    color: #0f0;
+    font-family: Arial;
+    text-align: center;
+    padding: 20px;
+  }
+  #reader {
+    width: 300px;
+    margin: auto;
+  }
+  #resultado {
+    margin-top: 20px;
+    background: #111;
+    padding: 20px;
+    border-radius: 12px;
+    color: #0f0;
+    word-break: break-all;
+    font-size: 18px;
+  }
+  button {
+    padding: 12px 25px;
+    font-size: 18px;
+    background: #0f0;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+</style>
+
+<script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+
 </head>
 <body>
 
-  <h1>Scanner QR & Código de Barras</h1>
+<h1>Leitor QRCode</h1>
 
-  <div class="controles">
-    <select id="modo">
-      <option value="rapido">Modo Rápido (recomendado)</option>
-      <option value="preciso">Modo Preciso (mais luz necessária)</option>
-    </select>
-    <button onclick="iniciar()">Iniciar / Reiniciar Scanner</button>
-  </div>
+<div id="reader"></div>
 
-  <div id="reader"></div>
-  <div id="resultado">Selecione o modo e toque em Iniciar</div>
+<button onclick="iniciar()">INICIAR SCAN</button>
 
-  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<div id="resultado"></div>
 
-  <script>
-    const html5QrCode = new Html5Qrcode("reader");
-    const resultado = document.getElementById("resultado");
-    let escaneando = false;
+<script>
+let scannerAtivo = false;
+let html5QrCode;
 
-    async function iniciar() {
-      if (escaneando) {
-        await html5QrCode.stop().catch(()=>{});
-        escaneando = false;
+async function iniciar() {
+  try {
+    if (scannerAtivo) return;
+
+    document.getElementById("resultado").innerHTML = "";
+    scannerAtivo = true;
+
+    html5QrCode = new Html5Qrcode("reader");
+
+    const videoConfig = { facingMode: "environment" };
+
+    html5QrCode.start(
+      videoConfig,
+      { fps: 10, qrbox: 250 },
+
+      // ======= CALLBACK DO RESULTADO =======
+      (decodedText, decodedResult) => {
+        console.log("Lido:", decodedText);
+
+        // PARA TUDO
+        html5QrCode.stop().catch(() => {});
+        scannerAtivo = false;
+
+        // MOSTRA NA TELA
+        document.getElementById("resultado").innerHTML = `
+          <h2 style="color:#0f0">Código detectado:</h2>
+          <div style="font-size:22px;">${decodedText}</div>
+        `;
+      },
+
+      // ======= CALLBACK DE ERRO =======
+      (error) => {
+        console.log("Buscando...", error);
       }
+    );
 
-      resultado.innerHTML = "Ativando câmera...";
+  } catch (e) {
+    console.error(e);
+    document.getElementById("resultado").innerHTML =
+      "Erro ao iniciar o scanner";
+  }
+}
+</script>
 
-      const modo = document.getElementById("modo").value;
-
-      const config = {
-        fps: modo === "rapido" ? 20 : 8,
-        qrbox: { width: 350, height: 350 }
-      };
-
-      html5QrCode.start(
-        { facingMode: "environment" },
-        config,
-        async (decodedText, decodedResult) => {
-
-          navigator.vibrate?.(200);
-          const tipo = decodedResult.format?.formatName || "QR/Barcode";
-
-          // 👉 PRIMEIRO mostra o resultado
-          resultado.innerHTML = `
-            <h3 style="color:#00ff41">Escaneado com sucesso!</h3>
-            <p><b>Tipo:</b> ${tipo}</p>
-            <h2 style="background:rgba(0,0,0,0.7);padding:20px;border-radius:12px;word-break:break-all;">
-              ${decodedText}
-            </h2>
-            <button onclick="navigator.clipboard.writeText('${decodedText}').then(()=>alert('Copiado!'))">Copiar</button>
-            <button onclick="window.open('${decodedText}','_blank')">Abrir Link</button>
-            <button onclick="iniciar()">Escanear outro</button>
-          `;
-
-          // 👉 ENVIA PARA O FLUTTERFLOW
-          window.parent.postMessage(
-            { tipo: "qr_resultado", valor: decodedText },
-            "*"
-          );
-
-          // 👉 SÓ PARA O SCANNER DEPOIS QUE A TELA ATUALIZAR
-          setTimeout(() => {
-            html5QrCode.stop().catch(()=>{});
-            escaneando = false;
-          }, 300);
-        },
-        () => {}
-      )
-      .then(() => {
-        escaneando = true;
-        resultado.innerHTML = "Escaneando... Aponte para QR ou código de barras";
-      })
-      .catch(err => {
-        resultado.innerHTML = `<p style="color:#ff4444">Erro: ${err}</p><small>Atualize a página e permita a câmera</small>`;
-      });
-    }
-
-    if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-      setTimeout(iniciar, 1000);
-    }
-  </script>
 </body>
 </html>
