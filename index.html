@@ -30,66 +30,80 @@
   <div id="reader"></div>
   <div id="resultado">Selecione o modo e toque em Iniciar</div>
 
-  <!-- Biblioteca oficial mais recente (2025) -->
+  <!-- Biblioteca oficial mais recente -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <script>
-    const html5QrCode = new Html5Qrcode("reader");
-    const resultado = document.getElementById("resultado");
+    let html5QrCode = null;
     let escaneando = false;
+    const resultado = document.getElementById("resultado");
 
     async function iniciar() {
-      if (escaneando) {
-        await html5QrCode.stop();
+
+      // Caso já exista instância rodando → parar
+      if (html5QrCode && escaneando) {
+        try { await html5QrCode.stop(); } catch(e){}
         escaneando = false;
       }
 
       resultado.innerHTML = "Ativando câmera...";
 
+      // Criar nova instância sempre que iniciar
+      html5QrCode = new Html5Qrcode("reader");
+
       const modo = document.getElementById("modo").value;
 
       const config = {
         fps: modo === "rapido" ? 20 : 8,
-        qrbox: { width: 350, height: 350 },
-        // Sem aspectRatio = evita tela preta no iOS
-        // Deixamos TODOS os formatos = nunca mais trava
+        qrbox: { width: 350, height: 350 }
       };
 
       html5QrCode.start(
         { facingMode: "environment" },
         config,
         (decodedText, decodedResult) => {
+
+          // Vibrar no celular
           navigator.vibrate?.(200);
+
           const tipo = decodedResult.format?.formatName || "QR/Barcode";
+          const seguro = decodedText.replace(/"/g, '&quot;');
 
           resultado.innerHTML = `
             <h3 style="color:#00ff41">Escaneado com sucesso!</h3>
             <p><b>Tipo:</b> ${tipo}</p>
             <h2 style="background:rgba(0,0,0,0.7);padding:20px;border-radius:12px;word-break:break-all;">
-              ${decodedText}
+              ${seguro}
             </h2>
-            <button onclick="navigator.clipboard.writeText('${decodedText}').then(()=>alert('Copiado!'))">Copiar</button>
-            <button onclick="window.open('${decodedText}','_blank')">Abrir Link</button>
+
+            <button onclick="navigator.clipboard.writeText(\`${seguro}\`).then(()=>alert('Copiado!'))">
+              Copiar
+            </button>
+
+            <button onclick="window.open('${encodeURI(decodedText)}','_blank')">
+              Abrir Link
+            </button>
+
             <button onclick="iniciar()">Escanear outro</button>
           `;
 
-          html5QrCode.stop();
+          html5QrCode.stop().catch(()=>{});
           escaneando = false;
         },
         (error) => {
-          // ignoramos erros de frame (é normal)
+          // Erros de leitura por frame são normais, ignorar
         }
       ).then(() => {
         escaneando = true;
         resultado.innerHTML = "Escaneando... Aponte para QR ou código de barras";
       }).catch(err => {
-        resultado.innerHTML = `<p style="color:#ff4444">Erro: ${err}</p><small>Atualize a página e permita a câmera</small>`;
+        resultado.innerHTML = `<p style="color:#ff4444">Erro: ${err}</p><small>Atualize a página e permita o uso da câmera.</small>`;
       });
     }
 
-    // Auto-inicia no celular
+    // Auto iniciar em celular
     if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-      setTimeout(iniciar, 1000);
+      setTimeout(iniciar, 1200);
     }
   </script>
 </body>
