@@ -6,72 +6,53 @@
   <title>Scanner QR Code & Código de Barras</title>
   <style>
     body { margin:0; padding:0; background:#000; color:#fff; font-family:system-ui,sans-serif; text-align:center; }
-    h1 { padding:20px 10px 10px; font-size:24px; margin:0; }
-    #reader { width:100vw; height:70vh; max-width:600px; margin:0 auto; background:#111; }
-    .controles { padding:15px; background:rgba(255,255,255,0.1); }
+    h1 { padding:20px 10px 0; font-size:24px; margin:0; }
+    .controles { padding:15px; background:rgba(255,255,255,0.08); }
     select, button { padding:12px 20px; font-size:18px; border-radius:50px; margin:8px; font-weight:bold; }
-    select { background:#333; color:white; border:none; }
-    button { background:#00ff41; color:black; border:none; cursor:pointer; }
-    #resultado { padding:20px; font-size:18px; background:rgba(255,255,255,0.1); margin:20px auto; border-radius:15px; max-width:500px; backdrop-filter:blur(10px); }
+    select { background:#222; color:white; border:none; width:90%; max-width:400px; }
+    button { background:#00ff41; color:black; border:none; cursor:pointer; width:90%; max-width:400px; }
+    #reader { width:100%; height:70vh; background:#000; }
+    #resultado { padding:20px; font-size:18px; background:rgba(255,255,255,0.1); margin:20px auto; border-radius:15px; max-width:90%; backdrop-filter:blur(10px); }
   </style>
 </head>
 <body>
 
-  <h1>Scanner Universal</h1>
+  <h1>Scanner QR & Código de Barras</h1>
 
   <div class="controles">
     <select id="modo">
-      <option value="barras">Apenas Código de Barras (mais rápido)</option>
-      <option value="qr">Apenas QR Code</option>
-      <option value="ambos" selected>Tudo (QR + Barras)</option>
+      <option value="rapido">Modo Rápido (recomendado)</option>
+      <option value="preciso">Modo Preciso (mais luz necessária)</option>
     </select>
-    <br>
-    <button onclick="iniciar()">Iniciar Scanner</button>
+    <button onclick="iniciar()">Iniciar / Reiniciar Scanner</button>
   </div>
 
   <div id="reader"></div>
   <div id="resultado">Selecione o modo e toque em Iniciar</div>
 
+  <!-- Biblioteca oficial mais recente (2025) -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
   <script>
     const html5QrCode = new Html5Qrcode("reader");
     const resultado = document.getElementById("resultado");
-    let scannerAtivo = false;
+    let escaneando = false;
 
-    function iniciar() {
-      if (scannerAtivo) {
-        html5QrCode.stop();
-        scannerAtivo = false;
+    async function iniciar() {
+      if (escaneando) {
+        await html5QrCode.stop();
+        escaneando = false;
       }
 
       resultado.innerHTML = "Ativando câmera...";
 
       const modo = document.getElementById("modo").value;
 
-      let formatos = [];
-
-      if (modo === "barras" || modo === "ambos") {
-        formatos = formatos.concat([
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-          Html5QrcodeSupportedFormats.ITF,
-          Html5QrcodeSupportedFormats.CODABAR
-        ]);
-      }
-
-      if (modo === "qr" || modo === "ambos") {
-        formatos.push(Html5QrcodeSupportedFormats.QR_CODE);
-      }
-
       const config = {
-        fps: modo === "barras" ? 20 : 10, // mais rápido só para barras
-        qrbox: { width: 320, height: 320 },
-        disableFlip: false,
-        formatsToSupport: formatos
+        fps: modo === "rapido" ? 20 : 8,
+        qrbox: { width: 350, height: 350 },
+        // Sem aspectRatio = evita tela preta no iOS
+        // Deixamos TODOS os formatos = nunca mais trava
       };
 
       html5QrCode.start(
@@ -79,39 +60,35 @@
         config,
         (decodedText, decodedResult) => {
           navigator.vibrate?.(200);
-          const tipo = decodedResult.format?.formatName || "Desconhecido";
+          const tipo = decodedResult.format?.formatName || "QR/Barcode";
 
           resultado.innerHTML = `
-            <h3 style="color:#00ff41">Leitura OK!</h3>
-            <p><b>Modo:</b> ${document.getElementById('modo').selectedOptions[0].text}</p>
-            <p><b>Tipo detectado:</b> ${tipo}</p>
+            <h3 style="color:#00ff41">Escaneado com sucesso!</h3>
+            <p><b>Tipo:</b> ${tipo}</p>
             <h2 style="background:rgba(0,0,0,0.7);padding:20px;border-radius:12px;word-break:break-all;">
               ${decodedText}
             </h2>
-            <button onclick="navigator.clipboard.writeText('${decodedText}').then(()=>alert('Copiado!'))">
-              Copiar
-            </button>
-            <button onclick="window.open('${decodedText}','_blank')">
-              Abrir Link
-            </button>
-            <button onclick="location.reload()">
-              Novo Scan
-            </button>
+            <button onclick="navigator.clipboard.writeText('${decodedText}').then(()=>alert('Copiado!'))">Copiar</button>
+            <button onclick="window.open('${decodedText}','_blank')">Abrir Link</button>
+            <button onclick="iniciar()">Escanear outro</button>
           `;
+
           html5QrCode.stop();
-          scannerAtivo = false;
+          escaneando = false;
         },
-        () => {}
+        (error) => {
+          // ignoramos erros de frame (é normal)
+        }
       ).then(() => {
-        scannerAtivo = true;
-        resultado.innerHTML = `Escaneando como: <strong>${document.getElementById('modo').selectedOptions[0].text}</strong><br>Aponte para o código...`;
+        escaneando = true;
+        resultado.innerHTML = "Escaneando... Aponte para QR ou código de barras";
       }).catch(err => {
-        resultado.innerHTML = `<p style="color:#ff4444">Erro na câmera:<br>${err}</p>`;
+        resultado.innerHTML = `<p style="color:#ff4444">Erro: ${err}</p><small>Atualize a página e permita a câmera</small>`;
       });
     }
 
-    // Auto-start no celular
-    if (/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    // Auto-inicia no celular
+    if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       setTimeout(iniciar, 1000);
     }
   </script>
