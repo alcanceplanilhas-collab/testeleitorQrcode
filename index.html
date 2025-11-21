@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Scanner QR Code & Código de Barras</title>
+
   <style>
     body { margin:0; padding:0; background:#000; color:#fff; font-family:system-ui,sans-serif; text-align:center; }
     h1 { padding:20px 10px 0; font-size:24px; margin:0; }
@@ -33,67 +34,67 @@
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <script>
-    let qrScanner = null;
-    let escaneando = false;
-    const resultado = document.getElementById("resultado");
+
+    let qr = null;
+    let ativo = false;
 
     async function iniciar() {
+
+      const reader = document.getElementById("reader");
+      const resultado = document.getElementById("resultado");
+
       resultado.innerHTML = "Ativando câmera...";
 
-      // Se já existe scanner ativo → parar corretamente
-      if (qrScanner && escaneando) {
-        try { await qrScanner.stop(); } catch(e){}
-        try { await qrScanner.clear(); } catch(e){}
-        escaneando = false;
-      }
+      // 🔥 APAGA QUALQUER COISA ANTIGA DENTRO DO READER
+      reader.innerHTML = "";
 
-      // Recria scanner do ZERO
-      qrScanner = new Html5Qrcode("reader");
+      // 🔥 RECRIA o scanner
+      qr = new Html5Qrcode("reader");
 
       const modo = document.getElementById("modo").value;
+
       const config = {
         fps: modo === "rapido" ? 20 : 8,
         qrbox: { width: 350, height: 350 }
       };
 
-      qrScanner.start(
-        { facingMode: "environment" },
-        config,
-        (decodedText, decodedResult) => {
-          navigator.vibrate?.(200);
+      try {
+        await qr.start(
+          { facingMode: "environment" },
+          config,
+          (texto, resultadoScan) => {
+            navigator.vibrate?.(200);
 
-          const tipo = decodedResult.format?.formatName || "QR/Barcode";
-          const seguro = decodedText.replace(/"/g, "&quot;");
+            const tipo = resultadoScan.format?.formatName || "Código";
 
-          resultado.innerHTML = `
-            <h3 style="color:#00ff41">Escaneado com sucesso!</h3>
-            <p><b>Tipo:</b> ${tipo}</p>
-            <h2 style="background:rgba(0,0,0,0.7);padding:20px;border-radius:12px;word-break:break-all;">
-              ${seguro}
-            </h2>
-          `;
+            resultado.innerHTML = `
+              <h3 style="color:#00ff41">Lido com sucesso!</h3>
+              <p><b>Tipo:</b> ${tipo}</p>
+              <h2 style="background:rgba(0,0,0,0.7);padding:20px;border-radius:12px;word-break:break-all;">
+                ${texto}
+              </h2>
+            `;
 
-          qrScanner.stop();
-          escaneando = false;
-        },
-        (err) => {}
-      )
-      .then(() => {
-        escaneando = true;
-        resultado.innerHTML = "Escaneando... Aponte para QR ou código de barras";
-      })
-      .catch(err => {
-        resultado.innerHTML = `<p style="color:#ff4444">Erro: ${err}</p>`;
-      });
+            qr.stop();
+            ativo = false;
+          }
+        );
+
+        ativo = true;
+        resultado.innerHTML = "Escaneando...";
+
+      } catch (e) {
+        resultado.innerHTML = `<p style="color:#f55">Erro: ${e}</p>`;
+      }
     }
 
-    // botão funcionando
     document.getElementById("btnIniciar").addEventListener("click", iniciar);
 
     // auto iniciar no celular
     if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-      setTimeout(iniciar, 1200);
+      setTimeout(iniciar, 1000);
     }
+
   </script>
 
 </body>
