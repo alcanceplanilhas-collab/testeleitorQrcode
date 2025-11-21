@@ -24,30 +24,31 @@
       <option value="rapido">Modo Rápido (recomendado)</option>
       <option value="preciso">Modo Preciso (mais luz necessária)</option>
     </select>
-    <button onclick="iniciar()">Iniciar / Reiniciar Scanner</button>
+    <button id="btnIniciar">Iniciar / Reiniciar Scanner</button>
   </div>
 
   <div id="reader"></div>
   <div id="resultado">Selecione o modo e toque em Iniciar</div>
 
-  <!-- Biblioteca html5-qrcode -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <script>
-    let html5QrCode = null;
+    let qrScanner = null;
     let escaneando = false;
     const resultado = document.getElementById("resultado");
 
     async function iniciar() {
-      // Se já tem scanner aberto, parar
-      if (html5QrCode && escaneando) {
-        try { await html5QrCode.stop(); } catch(e){}
+      resultado.innerHTML = "Ativando câmera...";
+
+      // Se já existe scanner ativo → parar corretamente
+      if (qrScanner && escaneando) {
+        try { await qrScanner.stop(); } catch(e){}
+        try { await qrScanner.clear(); } catch(e){}
         escaneando = false;
       }
 
-      resultado.innerHTML = "Ativando câmera...";
-
-      html5QrCode = new Html5Qrcode("reader");
+      // Recria scanner do ZERO
+      qrScanner = new Html5Qrcode("reader");
 
       const modo = document.getElementById("modo").value;
       const config = {
@@ -55,14 +56,11 @@
         qrbox: { width: 350, height: 350 }
       };
 
-      html5QrCode.start(
+      qrScanner.start(
         { facingMode: "environment" },
         config,
-
-        // 📌 Callback quando escaneia
         (decodedText, decodedResult) => {
-
-          navigator.vibrate?.(200); // vibração no celular
+          navigator.vibrate?.(200);
 
           const tipo = decodedResult.format?.formatName || "QR/Barcode";
           const seguro = decodedText.replace(/"/g, "&quot;");
@@ -75,11 +73,9 @@
             </h2>
           `;
 
-          html5QrCode.stop().catch(()=>{});
+          qrScanner.stop();
           escaneando = false;
         },
-
-        // erros de leitura normais
         (err) => {}
       )
       .then(() => {
@@ -87,13 +83,14 @@
         resultado.innerHTML = "Escaneando... Aponte para QR ou código de barras";
       })
       .catch(err => {
-        resultado.innerHTML = `
-          <p style="color:#ff4444">Erro: ${err}</p>
-          <small>Atualize a página e permita o uso da câmera.</small>`;
+        resultado.innerHTML = `<p style="color:#ff4444">Erro: ${err}</p>`;
       });
     }
 
-    // Auto iniciar em celular
+    // botão funcionando
+    document.getElementById("btnIniciar").addEventListener("click", iniciar);
+
+    // auto iniciar no celular
     if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
       setTimeout(iniciar, 1200);
     }
