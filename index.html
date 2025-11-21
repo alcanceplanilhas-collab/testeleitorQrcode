@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Scanner QR Code & Código de Barras</title>
-
   <style>
     body { margin:0; padding:0; background:#000; color:#fff; font-family:system-ui,sans-serif; text-align:center; }
     h1 { padding:20px 10px 0; font-size:24px; margin:0; }
@@ -31,18 +30,17 @@
   <div id="reader"></div>
   <div id="resultado">Selecione o modo e toque em Iniciar</div>
 
-  <!-- Biblioteca oficial -->
   <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <script>
     const html5QrCode = new Html5Qrcode("reader");
     const resultado = document.getElementById("resultado");
-    let scannerAtivo = false;
+    let escaneando = false;
 
     async function iniciar() {
-      if (scannerAtivo) {
-        await html5QrCode.stop().catch(() => {});
-        scannerAtivo = false;
+      if (escaneando) {
+        await html5QrCode.stop().catch(()=>{});
+        escaneando = false;
       }
 
       resultado.innerHTML = "Ativando câmera...";
@@ -54,42 +52,52 @@
         qrbox: { width: 350, height: 350 }
       };
 
-      html5QrCode
-        .start(
-          { facingMode: "environment" },
-          config,
-          (decodedText, decodedResult) => {
+      html5QrCode.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText, decodedResult) => {
 
-            html5QrCode.stop().catch(() => {});
-            scannerAtivo = false;
+          navigator.vibrate?.(200);
 
-            // EXIBE NA TELA
-            resultado.innerHTML = `
-              <h2 style="color:#0f0">Código detectado:</h2>
-              <div style="font-size:22px;word-break:break-all">${decodedText}</div>
-            `;
+          const tipo = decodedResult.format?.formatName || "QR/Barcode";
 
-            // ENVIA O RESULTADO PARA O FLUTTERFLOW
-            window.parent.postMessage(
-              { tipo: "qr_resultado", valor: decodedText },
-              "*"
-            );
-          },
-          (err) => {}
-        )
-        .then(() => {
-          scannerAtivo = true;
-          resultado.innerHTML = "Escaneando... Aponte para QR ou código de barras";
-        })
-        .catch((err) => {
-          resultado.innerHTML = `<p style="color:#f44">Erro: ${err}</p>`;
-        });
+          resultado.innerHTML = `
+            <h3 style="color:#00ff41">Escaneado com sucesso!</h3>
+            <p><b>Tipo:</b> ${tipo}</p>
+            <h2 style="background:rgba(0,0,0,0.7);padding:20px;border-radius:12px;word-break:break-all;">
+              ${decodedText}
+            </h2>
+            <button onclick="navigator.clipboard.writeText('${decodedText}').then(()=>alert('Copiado!'))">Copiar</button>
+            <button onclick="window.open('${decodedText}','_blank')">Abrir Link</button>
+            <button onclick="iniciar()">Escanear outro</button>
+          `;
+
+          // RETORNO PARA O FLUTTERFLOW
+          window.parent.postMessage(
+            { tipo: "qr_resultado", valor: decodedText },
+            "*"
+          );
+
+          html5QrCode.stop().catch(()=>{});
+          escaneando = false;
+        },
+        (error) => {
+          // erros normais de leitura, ignorar
+        }
+      )
+      .then(() => {
+        escaneando = true;
+        resultado.innerHTML = "Escaneando... Aponte para QR ou código de barras";
+      })
+      .catch(err => {
+        resultado.innerHTML = `<p style="color:#ff4444">Erro: ${err}</p><small>Atualize a página e permita a câmera</small>`;
+      });
     }
 
-    // Auto-start em celular
     if (/Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
-      setTimeout(iniciar, 800);
+      setTimeout(iniciar, 1000);
     }
   </script>
+
 </body>
 </html>
