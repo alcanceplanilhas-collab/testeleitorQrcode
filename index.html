@@ -55,12 +55,12 @@
       html5QrCode.start(
         { facingMode: "environment" },
         config,
-        (decodedText, decodedResult) => {
+        async (decodedText, decodedResult) => {
 
           navigator.vibrate?.(200);
-
           const tipo = decodedResult.format?.formatName || "QR/Barcode";
 
+          // 👉 PRIMEIRO mostra o resultado
           resultado.innerHTML = `
             <h3 style="color:#00ff41">Escaneado com sucesso!</h3>
             <p><b>Tipo:</b> ${tipo}</p>
@@ -72,18 +72,19 @@
             <button onclick="iniciar()">Escanear outro</button>
           `;
 
-          // RETORNO PARA O FLUTTERFLOW
+          // 👉 ENVIA PARA O FLUTTERFLOW
           window.parent.postMessage(
             { tipo: "qr_resultado", valor: decodedText },
             "*"
           );
 
-          html5QrCode.stop().catch(()=>{});
-          escaneando = false;
+          // 👉 SÓ PARA O SCANNER DEPOIS QUE A TELA ATUALIZAR
+          setTimeout(() => {
+            html5QrCode.stop().catch(()=>{});
+            escaneando = false;
+          }, 300);
         },
-        (error) => {
-          // erros normais de leitura, ignorar
-        }
+        () => {}
       )
       .then(() => {
         escaneando = true;
@@ -98,6 +99,5 @@
       setTimeout(iniciar, 1000);
     }
   </script>
-
 </body>
 </html>
