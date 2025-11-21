@@ -81,6 +81,12 @@ async function iniciar() {
           <h2 style="color:#0f0">Código detectado:</h2>
           <div style="font-size:22px;">${decodedText}</div>
         `;
+
+        // ======= ENVIA RESULTADO PARA O FLUTTERFLOW =======
+        window.parent.postMessage(
+          { tipo: "qr_resultado", valor: decodedText },
+          "*"
+        );
       },
 
       // ======= CALLBACK DE ERRO =======
